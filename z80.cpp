@@ -222,21 +222,21 @@ namespace Z80 {
     }
 
     u8 ADC(u8 s1, u8 s2) {
-        u16 res = s1+s2+AF.CF;
-        AF = ZSTable[res];
-        AF.CF = res>>8;
+        u8 res = s1+s2+AF.CF;
+        F = ZSTable[res];
+        AF.CF = bool(s1>res);
         AF.VF = bool(~(s1^s2)&(s1^res)&0x80);
-        AF.HF = bool((s1^s2^res)&0x08);
+        AF.HF = bool((s1&0xf) > (res&0xf));
         return res;
     }
 
     u8 SBC(u8 s1, u8 s2) {
-        u16 res = s1-s2-AF.CF;
-        AF = ZSTable[res];
+        u8 res = s1-s2-AF.CF;
+        F = ZSTable[res];
         AF.NF = 1;
-        AF.CF = (-res)>>8;
+        AF.CF = bool(s1<res);
         AF.VF = bool((s1^s2)&(s1^res)&0x80);
-        AF.HF = bool((s1^s2^res)&0x08);
+        AF.HF = bool((s1&0xf) < (res&0xf));
         return res;
     }
 
