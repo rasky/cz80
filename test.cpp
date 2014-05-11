@@ -129,6 +129,10 @@ namespace Test {
         Marat::cpu.IY.W = reg(REG_IY);
         Marat::cpu.SP.W = reg(REG_SP);
         Marat::cpu.PC.W = reg(REG_PC);
+        Marat::cpu.AF1.W = reg(REG_AF1);
+        Marat::cpu.BC1.W = reg(REG_BC1);
+        Marat::cpu.DE1.W = reg(REG_DE1);
+        Marat::cpu.HL1.W = reg(REG_HL1);
     }
 
     void checksync() {
@@ -140,6 +144,10 @@ namespace Test {
         assertequal("IY", reg(REG_IY), Marat::cpu.IY.W);
         assertequal("SP", reg(REG_SP), Marat::cpu.SP.W);
         assertequal("PC", reg(REG_PC), Marat::cpu.PC.W);
+        assertequal("AF1", reg(REG_AF1)&~0x28, Marat::cpu.AF1.W);
+        assertequal("BC1", reg(REG_BC1), Marat::cpu.BC1.W);
+        assertequal("DE1", reg(REG_DE1), Marat::cpu.DE1.W);
+        assertequal("HL1", reg(REG_HL1), Marat::cpu.HL1.W);
     }
 
     void reset_test(void)

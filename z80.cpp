@@ -59,7 +59,7 @@ namespace Z80 {
     Line<LEVEL_TRIGGERED> line_irq, line_busreq, line_reset;
     Line<UP_EDGE_TRIGGERED> line_nmi;
     u64 CLK; bool ei_delay, halted;
-    Reg AF, BC, DE, HL, IX, IY, SP, PC; u8 R, I, IFF1, IFF2, IM;
+    Reg AF, BC, DE, HL, IX, IY, SP, PC, AF1, BC1, DE1, HL1; u8 R, I, IFF1, IFF2, IM;
     auto &A = AF.H; auto &F = AF.L;
     auto &B = BC.H; auto &C = BC.L;
     auto &D = DE.H; auto &E = DE.L;
@@ -300,11 +300,13 @@ namespace Z80 {
             x("01000100    |  ", 2) { AF.CF=0; A=SBC(0,A); }
             x("01ppm011    |  ", 6) { Mem16(m, n, p.W); }
             x("11rrr00m    |  ", 3) { Io8(!m, BC, r); /* FLAG */ }
-            x("101gf010    |  ", 4) { Wr(HL, In(BC));  HL.W+=-1*f; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
-            x("101gf011    |  ", 4) { Out(BC, Rd(HL)); HL.W+=-1*f; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
+            x("101gf010    |  ", 4) { Wr(HL, In(BC));  HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
+            x("101gf011    |  ", 4) { Out(BC, Rd(HL)); HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
             x("01000110    |  ", 2) { IM=0; }
             x("01010110    |  ", 2) { IM=1; }
             x("01011110    |  ", 2) { IM=2; }
+            x("01001101    |  ", 4) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
+            x("01000101    |  ", 4) { PC.L=Rd(SP++); PC.H=Rd(SP++); IFF1=IFF2; }
             x("01000111    |  ", 2) { I=A; }
             x("01010111    |  ", 2) { A=I; /* FLAG */}
             x("01101111    |  ", 5) { g=f=Rd(HL); f = (f<<4)|(A&0xF); A = (A&0xF0)|(g>>4); Wr(HL, f); }
@@ -344,6 +346,7 @@ namespace Z80 {
             x("00pp0001.n.N|   ", 2) { p=n; }
             x("00001010    |   ", 2) { A=Rd(HL); }
             x("0011m010.n.N|   ", 4) { Mem8(m, n, A); }
+            x("00110110:d.n|   ", 3) { Wr(HL+d, n); }
             x("00rrr110.n  |   ", 1) { r=n; }
             x("01rrr110:d  |   ", 2) { r=Rd(HL+d); }
             x("01110rrr:d  |   ", 2) { Wr(HL+d, r); }
@@ -357,6 +360,7 @@ namespace Z80 {
 
             x("00110100:d  |!  ", 1) { _=AF.CF; AF.CF=0; Wr(HL, ADC(Rd(HL+d),1)); AF.CF=_; }
             x("00rrr10g    |!  ", 1) { _=AF.CF; AF.CF=0; r=(g?SBC:ADC)(r,1); AF.CF=_; }
+            x("00ppf011    |   ", 1) { p.W -= f*2-1; }
 
             x("100gf110:d  |!  ", 2) { AF.CF&=f; A=(g?SBC:ADC)(A,Rd(HL+d)); }
             x("100gfrrr    |!  ", 1) { AF.CF&=f; A=(g?SBC:ADC)(A,r); }
@@ -385,10 +389,12 @@ namespace Z80 {
             x("11qq0001    |   ", 3) { q.L = Rd(SP++); q.H = Rd(SP++); }
             x("11111001    |   ", 1) { SP = HL; }
             x("11101011    |   ", 1) { swap(DE.W, Z80::HL.W); }
+            x("00001000    |   ", 1) { swap(AF.W, AF1.W); }
+            x("11011001    |   ", 1) { swap(BC.W, BC1.W); swap(DE.W, DE1.W); swap(HL.W, HL1.W); }
             x("11100011    |   ", 5) { Mem16(true, SP, n); Mem16(false, SP, HL.W); HL=n; }
 
             x("11000011.n.N|   ", 3) { PC = n; }
-            x("11ffg010    |   ", 3) { if ((g?F:~F)&flagmask[f]) Mem16(false, PC, PC.W); else PC.W+=2; }
+            x("11ffg010    |   ", 3) { if ((g?F:~F)&flagmask[f]) CLK+=2,Mem16(true, PC, PC.W); else PC.W+=2; }
             x("00011000.n  |   ", 3) { PC.W += (s8)n; }
             x("00111000    |   ", 2) { if (AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
             x("00110000    |   ", 2) { if (!AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
@@ -396,6 +402,12 @@ namespace Z80 {
             x("00100000    |   ", 2) { if (!AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
             x("11101001    |   ", 2) { PC = HL; }
             x("00010000    |   ", 2) { if (--B) { PC.W +=(s8)Rd(PC); CLK+=1; } PC.W+=1; }
+
+            x("11ffg100    |   ", 3) { if ((g?F:~F)&flagmask[f]) { Wr(--SP, PC.H); Wr(--SP, PC.L); CLK+=2; Mem16(true, PC, PC.W); } else PC.W+=2; }
+            x("11001101.n.N|   ", 5) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=n; }
+            x("11ffg000    |   ", 1) { if ((g?F:~F)&flagmask[f]) { PC.L=Rd(SP--); PC.H=Rd(SP--); CLK+=2; } }
+            x("11001001    |   ", 3) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
+            x("11fff111    |   ", 3) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=f*8; }
 
             x("11001011    |   ", 0) { OpCall<InsCB,prefix>(); }
             x("11101101    |   ", 0) { OpCall<InsED>(); }
@@ -406,7 +418,7 @@ namespace Z80 {
     };
 
     void reset(void) {
-        AF= BC= DE= HL= IX= IY= SP= PC= R= I= IFF1= IFF2= IM=0;
+        AF=AF1= BC=BC1= DE=DE1= HL=HL1= IX= IY= SP= PC= R= I= IFF1= IFF2= IM=0;
         SP = 0xF000;
         ei_delay = halted = false;
     }
@@ -454,6 +466,10 @@ namespace Z80 {
             case REG_IY: return IY.W;
             case REG_SP: return SP.W;
             case REG_PC: return PC.W;
+            case REG_AF1: return AF1.W;
+            case REG_BC1: return BC1.W;
+            case REG_DE1: return DE1.W;
+            case REG_HL1: return HL1.W;
         }
     }
 }

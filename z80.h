@@ -18,7 +18,11 @@ namespace Z80Bus {
 }
 
 namespace Z80 {
-    enum RegName { REG_AF, REG_BC, REG_DE, REG_HL, REG_IX, REG_IY, REG_SP, REG_PC };
+    enum RegName {
+        REG_AF, REG_BC, REG_DE, REG_HL,
+        REG_AF1, REG_BC1, REG_DE1, REG_HL1,
+        REG_IX, REG_IY, REG_SP, REG_PC
+    };
 
     void set_nmi_line(bool status);
     void set_irq_line(bool status);
