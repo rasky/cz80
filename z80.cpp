@@ -201,7 +201,7 @@ namespace Z80 {
         else Wr(addr, val);
     }
     inline void Mem16(bool read, u16 addr, u16 &val) {
-        if (read) { val = Rd(addr); val |= Rd(addr+1); }
+        if (read) { val = Rd(addr); val |= Rd(addr+1)<<8; }
         else { Wr(addr, val&0xFF); Wr(addr+1, val>>8); }
     }
 
