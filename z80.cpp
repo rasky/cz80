@@ -67,7 +67,7 @@ namespace Z80 {
     template <u8 val>
     u8 CalcPZS() {
         Reg ret = { CalcZS<val>() };
-        ret.PF = __builtin_popcount(val);
+        ret.PF = !__builtin_parity(val);
         return ret;
     }
     #define tzs(n) CalcZS<n>(),
