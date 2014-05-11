@@ -19,8 +19,18 @@ struct RegBit {
     unsigned operator++ (int) { unsigned r = *this; ++*this; return r; }
 };
 
+namespace Z80Bus {
+    void Wr(u16 addr, u8 value);
+    u8 Rd(u16 addr);
+    void Out(u16 addr, u8 value);
+    u8 In(u16 addr);
+    u8 IRQVector();
+    void exc_unimplemented(u8 op);
+}
+
 namespace Z80 {
     using namespace std;
+    using namespace Z80Bus;
 
     typedef union Reg_ {
         u16 W;
@@ -35,16 +45,25 @@ namespace Z80 {
         u16 operator--(int) { u16 r = *this; --*this; return r; }
     } Reg;
 
-    u64 CLK;
+    #define LEVEL_TRIGGERED      0
+    #define UP_EDGE_TRIGGERED    1
+    #define DOWN_EDGE_TRIGGERED  2
+
+    template <int trigger>
+    struct Line {
+        bool status; bool triggered;
+        Line& operator=(bool v) { if (trigger != LEVEL_TRIGGERED && (status^v)) triggered=true; status=v; return *this; }
+        operator bool() { bool ret=(trigger == LEVEL_TRIGGERED ? status : triggered); triggered = false; return ret; }
+    };
+
+    Line<LEVEL_TRIGGERED> line_irq, line_busreq, line_reset;
+    Line<UP_EDGE_TRIGGERED> line_nmi;
+    u64 CLK; bool ei_delay, halted;
     Reg AF, BC, DE, HL, IX, IY, SP, PC; u8 R, I, IFF1, IFF2, IM;
     auto &A = AF.H; auto &F = AF.L;
     auto &B = BC.H; auto &C = BC.L;
     auto &D = DE.H; auto &E = DE.L;
     auto &H = HL.H; auto &L = HL.L;
-
-    void Wr(u16 addr, u8 value);
-    u8 Rd(u16 addr);
-    void exc_unimplemented(u8 op);
 
     u8*  const regop[8] = {&B,&C,&D,&E,&H,&L,nullptr,&A};
     Reg* const ppairop[4] = { &BC, &DE, &HL, &SP };
@@ -196,6 +215,11 @@ namespace Z80 {
     #define q (*qpairop[x.q_])
 #endif
 
+    inline void Io8(bool read, u16 addr, u8 &val) {
+        if (read) val = In(addr);
+        else Out(addr, val);
+    }
+
     inline void Mem8(bool read, u16 addr, u8 &val) {
         if (read) val = Rd(addr);
         else Wr(addr, val);
@@ -275,6 +299,9 @@ namespace Z80 {
             xstart()
             x("01000100    |  ", 2) { AF.CF=0; A=SBC(0,A); }
             x("01ppm011    |  ", 6) { Mem16(m, n, p.W); }
+            x("11rrr00m    |  ", 3) { Io8(!m, BC, r); /* FLAG */ }
+            x("101gf010    |  ", 4) { Wr(HL, In(BC));  HL.W+=-1*f; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
+            x("101gf011    |  ", 4) { Out(BC, Rd(HL)); HL.W+=-1*f; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
             x("01000110    |  ", 2) { IM=0; }
             x("01010110    |  ", 2) { IM=1; }
             x("01011110    |  ", 2) { IM=2; }
@@ -307,10 +334,9 @@ namespace Z80 {
 
             xstart()
             x("00000000    |   ", 1) {}
-            x("00pp0001.n.N|   ", 2) { p = n; }
-            x("01110110    |   ", 1) { PC.W -= 1; }
+            x("01110110    |   ", 1) { PC.W -= 1; halted=true; }
             x("11110011    |   ", 1) { IFF1=IFF2=0; }
-            x("11111011    |   ", 1) { IFF1=IFF2=1; }
+            x("11111011    |   ", 1) { IFF1=IFF2=1; ei_delay=true; }
 
             x("0000m010    |   ", 2) { Mem8(m, BC, A); }
             x("0001m010    |   ", 2) { Mem8(m, DE, A); }
@@ -319,9 +345,11 @@ namespace Z80 {
             x("00001010    |   ", 2) { A=Rd(HL); }
             x("0011m010.n.N|   ", 4) { Mem8(m, n, A); }
             x("00rrr110.n  |   ", 1) { r=n; }
-            x("01rrrsss    |   ", 1) { r=s; }
             x("01rrr110:d  |   ", 2) { r=Rd(HL+d); }
             x("01110rrr:d  |   ", 2) { Wr(HL+d, r); }
+            x("01rrrsss    |   ", 1) { r=s; }
+
+            x("1101m011.n  |   ", 3) { Io8(m, ((A<<8)|n), A); }
 
             x("00101111    |*HN", 1) { A=~A; }
             x("00110111    |*hn", 1) { AF.CF=1; }
@@ -377,14 +405,43 @@ namespace Z80 {
         }
     };
 
-    void reset(void)
-    {
+    void reset(void) {
         AF= BC= DE= HL= IX= IY= SP= PC= R= I= IFF1= IFF2= IM=0;
         SP = 0xF000;
+        ei_delay = halted = false;
     }
+
+    void nmi(void) {
+        IFF1 = 0;
+        if (halted) { PC.W++; halted = false; }
+        Wr(--SP, PC.H); Wr(--SP, PC.L);
+        PC.W = 0x66;
+    }
+
+    void irq(void) {
+        if (!IFF1) return;
+        IFF1 = IFF2 = 0;
+        if (halted) { PC.W++; halted = false; }
+        Wr(--SP, PC.H); Wr(--SP, PC.L);
+        switch (IM) {
+            case 0: assert(!"not implemented: IM=0"); break;
+            case 1: PC.W = 0x38; break;
+            case 2: Mem16(true, (I<<8)|IRQVector(), PC.W); break;
+        }
+    }
+
+    void set_nmi_line(bool status)    { line_nmi = status; }
+    void set_irq_line(bool status)    { line_irq = status; }
+    void set_busreq_line(bool status) { line_busreq = status; }
+    void set_reset_line(bool status)  { line_reset = status; }
 
     void step() {
         OpCall<Z80::Ins>();
+        if (line_irq && !ei_delay)
+            irq();
+        if (line_nmi)
+            nmi();
+        ei_delay = false;
     }
 
     u16& reg(RegName reg) {

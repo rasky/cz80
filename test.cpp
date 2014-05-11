@@ -10,9 +10,11 @@
 namespace Test {
     std::queue<std::tuple<u16,u8>> reads;
     std::queue<std::tuple<u16,u8>> writes;
+    std::queue<std::tuple<u16,u8>> outs;
+    std::queue<std::tuple<u16,u8>> ins;
 }
 
-namespace Z80 {
+namespace Z80Bus {
 
     u8 MEM[0x10000];
 
@@ -25,10 +27,21 @@ namespace Z80 {
         Test::writes.push(std::make_pair(Addr, val));
         MEM[Addr] = val;
     }
+    u8 In(u16 Addr) {
+        u8 val = 0xFF;
+        Test::ins.push(std::make_pair(Addr, val));
+        return val;
+    }
+    void Out(u16 Addr, u8 val) {
+        Test::outs.push(std::make_pair(Addr, val));
+    }
+    u8 IRQVector() {
+        return 0xFA;
+    }
 
     void exc_unimplemented(u8 op) {
         fprintf(stderr, "ERROR: unimplemented exc: PC=%04x, op=%02x\n",
-            (u16)::Z80::reg(REG_PC), op);
+            (u16)::Z80::reg(::Z80::REG_PC), op);
         assert(0);
     }
 
@@ -66,19 +79,43 @@ namespace Marat {
         Test::reads.pop();
         return val;
     }
-    byte InZ80(word Addr) { return 0xFF; }
-    void OutZ80(word Addr, byte Value) { }
+    byte InZ80(word Addr) {
+        auto t = Test::ins.front();
+        if (std::get<0>(t) != Addr) {
+            fprintf(stderr, "ERROR: mem read does not match: PC=%04x, [%04x]->%02x  Marat[%04x]\n",
+                (u16)::Z80::reg(::Z80::REG_PC), std::get<0>(t), std::get<1>(t), Addr);
+            assert(0);
+        }
+        u8 val = std::get<1>(t);
+        Test::ins.pop();
+        return val;
+    }
+    void OutZ80(word Addr, byte Value) {
+        auto t = Test::outs.front();
+        if (std::get<0>(t) != Addr || std::get<1>(t) != Value) {
+            fprintf(stderr, "ERROR: mem write does not match: PC=%04x, [%04x]<-%02x  Marat[%04x]<-%02x\n",
+                (u16)::Z80::reg(::Z80::REG_PC), std::get<0>(t), std::get<1>(t), Addr, Value);
+            assert(0);
+        }
+        Test::outs.pop();
+    }
     void PatchZ80(Z80*) {}
 }
 
 namespace Test {
     using namespace Z80;
 
-    void assertequal(const char* reg, u16 a, u16 b)
+    void assertequal(const char* regn, u16 a, u16 b)
     {
         if (a != b) {
             fprintf(stderr, "ERROR: reg does not match: PC=%04x, %s=%04x Marat-%s:%04x\n",
-                (u16)::Z80::reg(REG_PC), reg, a, reg, b);
+                (u16)::Z80::reg(REG_PC), regn, a, regn, b);
+            fprintf(stderr, "REGS:  AF=%04x BC=%04x DE=%04x HL=%04x IX=%04x IY=%04x SP=%04x PC=%04x\n",
+                reg(REG_AF), reg(REG_BC), reg(REG_DE), reg(REG_HL),
+                reg(REG_IX), reg(REG_IY), reg(REG_SP), reg(REG_PC));
+            fprintf(stderr, "MARAT: AF=%04x BC=%04x DE=%04x HL=%04x IX=%04x IY=%04x SP=%04x PC=%04x\n",
+                Marat::cpu.AF.W, Marat::cpu.BC.W, Marat::cpu.DE.W, Marat::cpu.HL.W,
+                Marat::cpu.IX.W, Marat::cpu.IY.W, Marat::cpu.SP.W, Marat::cpu.PC.W);
             assert(0);
         }
     }
@@ -95,7 +132,7 @@ namespace Test {
     }
 
     void checksync() {
-        assertequal("AF", reg(REG_AF), Marat::cpu.AF.W);
+        assertequal("AF", reg(REG_AF)&~0x28, Marat::cpu.AF.W);
         assertequal("BC", reg(REG_BC), Marat::cpu.BC.W);
         assertequal("DE", reg(REG_DE), Marat::cpu.DE.W);
         assertequal("HL", reg(REG_HL), Marat::cpu.HL.W);
@@ -107,31 +144,51 @@ namespace Test {
 
     void reset_test(void)
     {
-        memset(MEM, 0, 0x10000);
+        memset(Z80Bus::MEM, 0, 0x10000);
         reset();
         Marat::ResetZ80(&Marat::cpu);
     }
 
     void runtestopcode(std::string testdata)
     {
-        memcpy(MEM, testdata.data(), testdata.size());
+        memcpy(Z80Bus::MEM, testdata.data(), testdata.size());
         step();
         Marat::ExecZ80(&Marat::cpu, 1);
+        checksync();
+    }
+
+    void testirq(void)
+    {
+        Z80::set_irq_line(true);
+        step();
+        Z80::set_irq_line(false);
+
+        Marat::ExecZ80(&Marat::cpu, 1);
+        Marat::IntZ80(&Marat::cpu, Z80Bus::IRQVector());
         checksync();
     }
 
     void run(void)
     {
         reset_test();
-        std::ifstream("pacman.code", std::ios::binary).read((char*)MEM, 16*1024);
-        for (int i=0;i<100;i++) {
+        std::ifstream("pacman.code", std::ios::binary).read((char*)Z80Bus::MEM, 16*1024);
+        for (int i=0;i<10000;i++) {
             step();
             Marat::ExecZ80(&Marat::cpu, 1);
             checksync();
         }
+        printf("triggering irq\n");
+        testirq();
+        printf("triggering irq done\n");
+        for (int i=0;i<10000;i++) {
+            printf("PC:%04x  Marat-PC:%04x\n", (u16)reg(REG_PC), Marat::cpu.PC.W);
+            step();
+            Marat::ExecZ80(&Marat::cpu, 1);
+            checksync();
+        }
+        printf("Exit PC: %04x\n", (u16)reg(REG_PC));
     }
 }
-
 
 int main()
 {
