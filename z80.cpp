@@ -360,13 +360,14 @@ namespace Z80 {
             x("11100011    |   ", 5) { Mem16(true, SP, n); Mem16(false, SP, HL.W); HL=n; }
 
             x("11000011.n.N|   ", 3) { PC = n; }
-            x("11ffg010.n.N|   ", 3) { if ((g?F:~F)&flagmask[f]) PC = n; }
-            x("00011000.n  |   ", 3) { PC.W += n; }
-            x("00111000.n  |   ", 3) { if (AF.CF) PC.W += n; }
-            x("00110000.n  |   ", 3) { if (!AF.CF) PC.W += n; }
-            x("00101000.n  |   ", 3) { if (AF.ZF) PC.W += n; }
-            x("00100000.n  |   ", 3) { if (!AF.ZF) PC.W += n; }
+            x("11ffg010    |   ", 3) { if ((g?F:~F)&flagmask[f]) Mem16(false, PC, PC.W); else PC.W+=2; }
+            x("00011000.n  |   ", 3) { PC.W += (s8)n; }
+            x("00111000    |   ", 2) { if (AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("00110000    |   ", 2) { if (!AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("00101000    |   ", 2) { if (AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("00100000    |   ", 2) { if (!AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
             x("11101001    |   ", 2) { PC = HL; }
+            x("00010000    |   ", 2) { if (--B) { PC.W +=(s8)Rd(PC); CLK+=1; } PC.W+=1; }
 
             x("11001011    |   ", 0) { OpCall<InsCB,prefix>(); }
             x("11101101    |   ", 0) { OpCall<InsED>(); }
