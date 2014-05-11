@@ -327,8 +327,8 @@ namespace Z80 {
             x("00110111    |*hn", 1) { AF.CF=1; }
             x("00111111    |*n ", 1) { AF.HF=AF.CF; AF.CF=~AF.CF; }
 
-            x("00110100:d  |!  ", 1) { AF.CF=0; Wr(HL, ADC(Rd(HL+d),1)); }
-            x("00rrr10g    |!  ", 1) { AF.CF=0; r=(g?SBC:ADC)(r,1); }
+            x("00110100:d  |!  ", 1) { _=AF.CF; AF.CF=0; Wr(HL, ADC(Rd(HL+d),1)); AF.CF=_; }
+            x("00rrr10g    |!  ", 1) { _=AF.CF; AF.CF=0; r=(g?SBC:ADC)(r,1); AF.CF=_; }
 
             x("100gf110:d  |!  ", 2) { AF.CF&=f; A=(g?SBC:ADC)(A,Rd(HL+d)); }
             x("100gfrrr    |!  ", 1) { AF.CF&=f; A=(g?SBC:ADC)(A,r); }
