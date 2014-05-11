@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
 CFLAGS=-O3 -g
-CXXFLAGS=-std=c++11 -O3 -g
+CXXFLAGS=-std=c++11 -fomit-frame-pointer -fvisibility=hidden -save-temps -O3 -g 
 LDFLAGS=-g
 
 all: z80
