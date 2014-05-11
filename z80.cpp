@@ -75,6 +75,7 @@ namespace Z80 {
     #define tpzs(n) CalcPZS<n>(),
     const u8 PZSTable[256] = { ft256(tpzs) };
 
+#if 0
     #define xxx(xs,idx) \
         if (xs[idx] == '0' && (op>>7)) match=false; \
         if (xs[idx] == '1' && !(op>>7)) match=false; \
@@ -100,18 +101,18 @@ namespace Z80 {
         if (xsf == 'h') AF.HF = 0; \
         if (xsf == 'H') AF.HF = 1;
     #define xend(xs) \
-        if (match) { xflag(xsflag[0]); xflag(xsflag[1]); xflag(xsflag[2]); return; }
+        if (match) { xflag(xsstring[0]); xflag(xsstring[1]); xflag(xsstring[2]); return; }
     #define xstart() \
-        u8 op,r_,s_,p_,q_,d,f,g,m,_; u16 n; bool match=false; const char* xsflag;
+        u8 op,r_,s_,p_,q_,d,f,g,m,_; u16 n; bool match=false; const char* xsstring;
     #define x(xs, cyc) \
         xend(xs) \
-        r_=s_=p_=q_=d=n=f=g=m=_=0; \
-        match=true; op=op_;      xx(xs, 0)    \
-        if (match && xs[ 8] == '.') { op=Rd(PC.W++); xa(xs[9]) }  \
-        if (match && xs[ 8] == ':' && prefix) { op=Rd(PC.W++); xa(xs[9]) }  \
-        if (match && xs[10] == '.') { op=Rd(PC.W++); xa(xs[11]) }  \
-        if (match && xs[10] == ':' && prefix) { op=Rd(PC.W++); xa(xs[11]) }  \
-        if (match) CLK+=cyc,xsflag=xs+13; \
+        r_=s_=p_=q_=d=n=f=g=m=_=0; xsstring=xs; match=true; op=op_; \
+        xx(xsstring, 0)    \
+        if (match && xsstring[ 8] == '.') { op=Rd(PC.W++); xa(xsstring[9]) }  \
+        if (match && xsstring[ 8] == ':' && prefix) { op=Rd(PC.W++); xa(xsstring[9]) }  \
+        if (match && xsstring[10] == '.') { op=Rd(PC.W++); xa(xsstring[11]) }  \
+        if (match && xsstring[10] == ':' && prefix) { op=Rd(PC.W++); xa(xsstring[11]) }  \
+        if (match) CLK+=cyc,xsstring+=13; \
         if (match)
     #define fallback() \
         if (m) return; \
@@ -119,7 +120,81 @@ namespace Z80 {
     #define r (*regop[r_])
     #define s (*regop[s_])
     #define p (*ppairop[p_])
-    #define q (*qpairop[p_])
+    #define q (*qpairop[q_])
+#else
+    #define INLINE  __attribute__((always_inline))
+
+    #define xxx(xs,idx) \
+        if      (xs[idx] == '0') { if (op>>7) { match=false; return; } } \
+        else if (xs[idx] == '1') { if (!(op>>7)) { match=false; return; } } \
+        else if (xs[idx] == 'r') r_ = (r_<<1) | (op>>7); \
+        else if (xs[idx] == 's') s_ = (s_<<1) | (op>>7); \
+        else if (xs[idx] == 'p') p_ = (p_<<1) | (op>>7); \
+        else if (xs[idx] == 'q') q_ = (q_<<1) | (op>>7); \
+        else if (xs[idx] == 'f') f = (f<<1) | (op>>7); \
+        else if (xs[idx] == 'g') g = (g<<1) | (op>>7); \
+        else if (xs[idx] == 'm') m = (m<<1) | (op>>7); \
+        op<<=1;
+    #define xa(ch) \
+        if      (ch == 'n') n=op; \
+        else if (ch == 'N') n=(op<<8)|n; \
+        else if (ch == 'd') d=op;
+    #define xflag(xsf) \
+        if      (xsf == '@') F=PZSTable[A]; \
+        else if (xsf == 'n') AF.NF = 0; \
+        else if (xsf == 'N') AF.NF = 1; \
+        else if (xsf == 'h') AF.HF = 0; \
+        else if (xsf == 'H') AF.HF = 1;
+
+    struct XDecoder {
+        u8 r_,s_,p_,q_,d,f,g,m,_; bool match; u16 n; const char *xsflag;
+
+        XDecoder() { match=false; }
+        XDecoder(u8 prefix, u8 op, const char* xs, int cyc) INLINE {
+            r_=s_=p_=q_=d=n=f=g=m=_=0; match=true;
+            xxx(xs, 0) xxx(xs, 1) xxx(xs, 2) xxx(xs, 3)
+            xxx(xs, 4) xxx(xs, 5) xxx(xs, 6) xxx(xs, 7)
+            if (xs[ 8] == '.')           { op=Rd(PC.W++); xa(xs[ 9]) }
+            if (xs[ 8] == ':' && prefix) { op=Rd(PC.W++); xa(xs[ 9]) }
+            if (xs[10] == '.')           { op=Rd(PC.W++); xa(xs[11]) }
+            if (xs[10] == ':' && prefix) { op=Rd(PC.W++); xa(xs[11]) }
+            CLK+=cyc;
+            xsflag = xs+13;
+            match=true;
+        }
+
+        ~XDecoder() INLINE {
+            if (!match) return;
+            xflag(xsflag[0]); xflag(xsflag[1]); xflag(xsflag[2]);
+        }
+
+        operator bool() INLINE { return match; }
+    };
+
+#if 0
+    // much slower (?)
+    #define xstart()   if (0);
+    #define x(xs, cyc) else if (XDecoder x = XDecoder(prefix, op_, xs, cyc))
+    #define fallback() else
+#else
+    #define xstart()     XDecoder x;
+    #define x(xs, cyc)   if (x) return; if ((x = XDecoder(prefix, op_, xs, cyc)))
+    #define fallback()   if (x) return;
+
+#endif
+
+
+    #define _ x._
+    #define f x.f
+    #define g x.g
+    #define d x.d
+    #define m x.m
+    #define n x.n
+    #define r (*regop[x.r_])
+    #define s (*regop[x.s_])
+    #define p (*ppairop[x.p_])
+    #define q (*qpairop[x.q_])
+#endif
 
     inline void Mem8(bool read, u16 addr, u8 &val) {
         if (read) val = Rd(addr);
