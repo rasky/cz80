@@ -249,12 +249,13 @@ namespace Z80 {
     }
 
     u8 ADC(u8 s1, u8 s2) {
-        u8 res = s1+s2+AF.CF;
-        F = ZSTable[res];
+        u8 cf = AF.CF;
+        u8 res = s1+s2;
+        F = ZSTable[res+cf];
         AF.CF = bool(s1>res);
         AF.VF = bool(~(s1^s2)&(s1^res)&0x80);
         AF.HF = bool((s1&0xf) > (res&0xf));
-        return res;
+        return res+cf;
     }
 
     u8 SBC(u8 s1, u8 s2) {
