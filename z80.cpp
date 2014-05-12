@@ -365,10 +365,9 @@ namespace Z80 {
             x("100gf110:d  |!  ", 2) { AF.CF&=f; A=(g?SBC:ADC)(A,Rd(HL+d)); }
             x("100gfrrr    |!  ", 1) { AF.CF&=f; A=(g?SBC:ADC)(A,r); }
             x("110gf110.n  |!  ", 2) { AF.CF&=f; A=(g?SBC:ADC)(A,n); }
-
-            x("1011f110:d  |!  ", 2) { AF.CF=0; SBC(A,Rd(HL+d)); }
-            x("1011frrr    |!  ", 1) { AF.CF=0; SBC(A,r); }
-            x("1111f110.n  |!  ", 2) { AF.CF=0; SBC(A,n); }
+            x("10111110:d  |!  ", 2) { AF.CF=0; (void)SBC(A,Rd(HL+d)); }
+            x("10111rrr    |!  ", 1) { AF.CF=0; (void)SBC(A,r); }
+            x("11111110.n  |!  ", 2) { AF.CF=0; (void)SBC(A,n); }
 
             x("10100110:d  |@H ", 2) { A&=Rd(HL+d); }
             x("10100rrr    |@H ", 1) { A&=r; }
