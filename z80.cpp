@@ -307,6 +307,7 @@ namespace Z80 {
             x("11rrr00m    |   ", 3) { Io8(!m, BC, r); /* FLAG */ }
             x("101gf010    |   ", 4) { Wr(HL, In(BC));  HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
             x("101gf011    |   ", 4) { Out(BC, Rd(HL)); HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
+            x("01ppg010    |!  ", 4) { HL.L=(g?SBC:ADC)(HL.L, p.L); HL.H=(g?SBC:ADC)(HL.H, p.H); }
             x("01000110    |   ", 2) { IM=0; }
             x("01010110    |   ", 2) { IM=1; }
             x("01011110    |   ", 2) { IM=2; }
