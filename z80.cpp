@@ -277,6 +277,7 @@ namespace Z80 {
                        (prefix == 0xFD) ? Z80::IY : Z80::HL);
             xstart()
             x("00000100:d  |@hn", 2) { f=Rd(HL+d); f=(f>>7)|(f<<1); AF.CF=f&1; Wr(HL+d, f); }
+            x("01fff110:d  |Hnk", 2) { g=Rd(HL+d)&(1<<f); F=PZSTable[g]; }
             x("00000rrr    |@hn", 2) { r=(r>>7)|(r<<1);     AF.CF=r&1; }
             /* TO BE DONE: RL m */
             fallback()           { exc_unimplemented(op_); }
