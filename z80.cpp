@@ -290,10 +290,10 @@ namespace Z80 {
             auto& HL = (prefix == 0xDD) ? Z80::IX : (
                        (prefix == 0xFD) ? Z80::IY : Z80::HL);
             xstart()
-            x("01000111    |  ", 2) { I=A; }
-            x("01001111    |  ", 2) { R=A; }
-            x("01010111    |  ", 2) { A=I; /* FLAG */ }
-            x("0101A111    |  ", 2) { A=R; /* FLAG */ }
+            x("01000111    |   ", 2) { I=A; }
+            x("01001111    |   ", 2) { R=A; }
+            x("01010111    |hnk", 2) { A=I; F=ZSTable[A]; AF.PF=IFF2; }
+            x("0101A111    |hnk", 2) { A=R; F=ZSTable[A]; AF.PF=IFF2; }
             fallback()           { Ins<op_>::template exec<0xDD>(); }
         }
     };
