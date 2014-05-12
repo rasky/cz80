@@ -160,6 +160,8 @@ namespace Z80 {
         else if (ch == 'd') d=op;
     #define xflag(xsf) \
         if      (xsf == '@') F=PZSTable[A]; \
+        else if (xsf == 'k') AF.CF = cf; \
+        else if (xsf == 'w') AF.VF = vf; \
         else if (xsf == 'n') AF.NF = 0; \
         else if (xsf == 'N') AF.NF = 1; \
         else if (xsf == 'h') AF.HF = 0; \
@@ -167,6 +169,7 @@ namespace Z80 {
 
     struct XDecoder {
         u8 r_,s_,p_,q_,d,f,g,m,_; bool match; u16 n; const char *xsflag;
+        bool cf, vf;
 
         XDecoder() { match=false; }
         XDecoder(u8 prefix, u8 op, const char* xs, int cyc) INLINE {
@@ -177,14 +180,14 @@ namespace Z80 {
             if (xs[ 8] == ':' && prefix) { op=Rd(PC.W++); xa(xs[ 9]) }
             if (xs[10] == '.')           { op=Rd(PC.W++); xa(xs[11]) }
             if (xs[10] == ':' && prefix) { op=Rd(PC.W++); xa(xs[11]) }
-            CLK+=cyc;
+            CLK+=cyc; cf=AF.CF; vf=AF.VF;
             xsflag = xs+13;
             match=true;
         }
 
         ~XDecoder() INLINE {
             if (!match) return;
-            xflag(xsflag[0]); xflag(xsflag[1]); xflag(xsflag[2]);
+            if (xsflag[0] != ' ') { xflag(xsflag[0]); xflag(xsflag[1]); xflag(xsflag[2]); }
         }
 
         operator bool() INLINE { return match; }
