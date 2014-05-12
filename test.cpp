@@ -180,19 +180,15 @@ namespace Test {
     {
         reset_test();
         std::ifstream("pacman.code", std::ios::binary).read((char*)Z80Bus::MEM, 16*1024);
-        for (int i=0;i<10000;i++) {
-            step();
-            Marat::ExecZ80(&Marat::cpu, 1);
-            checksync();
-        }
-        printf("triggering irq\n");
-        testirq();
-        printf("triggering irq done\n");
-        for (int i=0;i<10000;i++) {
-            printf("PC:%04x  Marat-PC:%04x\n", (u16)reg(REG_PC), Marat::cpu.PC.W);
-            step();
-            Marat::ExecZ80(&Marat::cpu, 1);
-            checksync();
+        for (int j=0;j<200;j++) {
+            for (int i=0;i<3000000;i++) {
+                if (reg(REG_PC) < 0x100)
+                    printf("PC:%04x Marat-PC:%04x\n", (u16)reg(REG_PC), Marat::cpu.PC.W);
+                step();
+                Marat::ExecZ80(&Marat::cpu, 1);
+                checksync();
+            }
+            testirq();
         }
         printf("Exit PC: %04x\n", (u16)reg(REG_PC));
     }
