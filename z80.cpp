@@ -302,23 +302,23 @@ namespace Z80 {
         template <u8 prefix=0>
         static void exec() {
             xstart()
-            x("01000100    |  ", 2) { AF.CF=0; A=SBC(0,A); }
-            x("01ppm011    |  ", 6) { Mem16(m, n, p.W); }
-            x("11rrr00m    |  ", 3) { Io8(!m, BC, r); /* FLAG */ }
-            x("101gf010    |  ", 4) { Wr(HL, In(BC));  HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
-            x("101gf011    |  ", 4) { Out(BC, Rd(HL)); HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
-            x("01000110    |  ", 2) { IM=0; }
-            x("01010110    |  ", 2) { IM=1; }
-            x("01011110    |  ", 2) { IM=2; }
-            x("01001101    |  ", 4) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
-            x("01000101    |  ", 4) { PC.L=Rd(SP++); PC.H=Rd(SP++); IFF1=IFF2; }
-            x("01000111    |  ", 2) { I=A; }
-            x("01010111    |  ", 2) { A=I; /* FLAG */}
-            x("01101111    |  ", 5) { g=f=Rd(HL); f = (f<<4)|(A&0xF); A = (A&0xF0)|(g>>4); Wr(HL, f); }
-            x("10100000    |  ", 4) { Wr(DE, Rd(HL)); DE++; HL++; BC--; /* FLAG */ }
-            x("10101000    |  ", 4) { Wr(DE, Rd(HL)); DE--; HL--; BC--; /* FLAG */ }
-            x("10110000    |  ", 4) { Wr(DE, Rd(HL)); DE++; HL++; BC--; PC.W -= (BC)?2:0; /* FLAG */ }
-            x("10111000    |  ", 4) { Wr(DE, Rd(HL)); DE--; HL--; BC--; PC.W -= (BC)?2:0; /* FLAG */ }
+            x("01000100    |   ", 2) { AF.CF=0; A=SBC(0,A); }
+            x("01ppm011    |   ", 6) { Mem16(m, n, p.W); }
+            x("11rrr00m    |   ", 3) { Io8(!m, BC, r); /* FLAG */ }
+            x("101gf010    |   ", 4) { Wr(HL, In(BC));  HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
+            x("101gf011    |   ", 4) { Out(BC, Rd(HL)); HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
+            x("01000110    |   ", 2) { IM=0; }
+            x("01010110    |   ", 2) { IM=1; }
+            x("01011110    |   ", 2) { IM=2; }
+            x("01001101    |   ", 4) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
+            x("01000101    |   ", 4) { PC.L=Rd(SP++); PC.H=Rd(SP++); IFF1=IFF2; }
+            x("01000111    |   ", 2) { I=A; }
+            x("01010111    |   ", 2) { A=I; /* FLAG */}
+            x("01101111    |   ", 5) { g=f=Rd(HL); f = (f<<4)|(A&0xF); A = (A&0xF0)|(g>>4); Wr(HL, f); }
+            x("10100000    |   ", 4) { Wr(DE, Rd(HL)); DE++; HL++; BC--; /* FLAG */ }
+            x("10101000    |   ", 4) { Wr(DE, Rd(HL)); DE--; HL--; BC--; /* FLAG */ }
+            x("10110000    |   ", 4) { Wr(DE, Rd(HL)); DE++; HL++; BC--; PC.W -= (BC)?2:0; /* FLAG */ }
+            x("10111000    |   ", 4) { Wr(DE, Rd(HL)); DE--; HL--; BC--; PC.W -= (BC)?2:0; /* FLAG */ }
             fallback()           { exc_unimplemented(op_); }
         }
     };
