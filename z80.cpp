@@ -415,6 +415,7 @@ namespace Z80 {
             x("11fff111    |   ", 3) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=f*8; }
 
             x("11001011    |   ", 0) { OpCall<InsCB,prefix>(); }
+            x("11011101    |   ", 0) { OpCall<InsDD>(); }
             x("11101101    |   ", 0) { OpCall<InsED>(); }
             x("11111101    |   ", 0) { OpCall<InsFD>(); }
 
