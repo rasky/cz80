@@ -275,21 +275,21 @@ namespace Z80 {
     template <u8 op_> struct InsCB {
         template <u8 prefix=0>
         static void exec() {
-            u8 doff = 0; u8 tmp;
+            u8 doff = prefix?NextOp():0; u8 tmp; bool wb=true;
             auto& HL = (prefix == 0xDD) ? Z80::IX : (
                        (prefix == 0xFD) ? Z80::IY : Z80::HL);
             u8*  const regop[8] = {&B,&C,&D,&E,&H,&L,&tmp,&A};
-            if (prefix)                   { doff = NextOp();  }
+
             if (prefix || (op_ & 7) == 6) { *regop[op_&7] = Rd(HL+doff); CLK++; }
 
             xstart()
             x("00000rrr    |@hn", 0) { r=(r>>7)|(r<<1); AF.CF=r&1; }
-            x("01fffrrr    |Hnk", 0) { g = r & (1<<f); F = PZSTable[g]; }
+            x("01fffrrr    |Hnk", 0) { g = r & (1<<f); F = PZSTable[g]; wb=false; }
             x("10fffrrr    |   ", 0) { r &= ~(1<<f); }
             x("11fffrrr    |   ", 0) { r |=  (1<<f); }
             fallback()           { exc_unimplemented(op_); }
 
-            if (prefix || (op_ & 7) == 6) { Wr(HL+doff, *regop[op_&7]); CLK++; }
+            if (wb && (prefix || (op_ & 7) == 6)) { Wr(HL+doff, *regop[op_&7]); CLK++; }
         }
     };
 
