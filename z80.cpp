@@ -333,8 +333,7 @@ namespace Z80 {
     template <u8 op_> struct InsFD {
         template <u8 prefix=0>
         static void exec() {
-            xstart()
-            fallback()           { Ins<op_>::template exec<0xFD>(); }
+            return Ins<op_>::template exec<0xFD>();
         }
     };
 
