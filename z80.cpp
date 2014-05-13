@@ -259,13 +259,22 @@ namespace Z80 {
     }
 
     u8 SBC(u8 s1, u8 s2) {
-        u8 res = s1-s2-AF.CF;
-        F = ZSTable[res];
+        u8 cf = AF.CF;
+        u8 res = s1-s2;
+        F = ZSTable[res-cf];
         AF.NF = 1;
         AF.CF = bool(s1<res);
         AF.VF = bool((s1^s2)&(s1^res)&0x80);
         AF.HF = bool((s1&0xf) < (res&0xf));
-        return res;
+        return res-cf;
+    }
+
+    void LD() {
+        u8 tmp = Rd(HL);
+        Wr(DE, tmp);
+        AF.YF = bool((tmp + A) & 0x2);
+        AF.XF = bool((tmp + A) & 0x8);
+        AF.PF = bool(BC != 0);
     }
 
     template <u8 op_> struct Ins;
@@ -287,8 +296,6 @@ namespace Z80 {
     template <u8 op_> struct InsDD {
         template <u8 prefix=0>
         static void exec() {
-            auto& HL = (prefix == 0xDD) ? Z80::IX : (
-                       (prefix == 0xFD) ? Z80::IY : Z80::HL);
             xstart()
             x("01000111    |   ", 2) { I=A; }
             x("01001111    |   ", 2) { R=A; }
@@ -316,10 +323,7 @@ namespace Z80 {
             x("01000111    |   ", 2) { I=A; }
             x("01010111    |   ", 2) { A=I; /* FLAG */}
             x("01101111    |   ", 5) { g=f=Rd(HL); f = (f<<4)|(A&0xF); A = (A&0xF0)|(g>>4); Wr(HL, f); }
-            x("10100000    |   ", 4) { Wr(DE, Rd(HL)); DE++; HL++; BC--; /* FLAG */ }
-            x("10101000    |   ", 4) { Wr(DE, Rd(HL)); DE--; HL--; BC--; /* FLAG */ }
-            x("10110000    |   ", 4) { Wr(DE, Rd(HL)); DE++; HL++; BC--; PC.W -= (BC)?2:0; /* FLAG */ }
-            x("10111000    |   ", 4) { Wr(DE, Rd(HL)); DE--; HL--; BC--; PC.W -= (BC)?2:0; /* FLAG */ }
+            x("101gf000    |hn ", 4) { BC--; LD(); DE.W-=f*2-1; HL.W-=f*2-1; if (BC && g) { PC.W-=2; CLK++; } } // LD*
             fallback()           { exc_unimplemented(op_); }
         }
     };
