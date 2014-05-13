@@ -343,6 +343,7 @@ namespace Z80 {
                        (prefix == 0xFD) ? Z80::IY : Z80::HL);
             Reg* const ppairop[4] = { &BC, &DE, &HL, &SP };
             Reg* const qpairop[4] = { &BC, &DE, &HL, &AF };
+            u8*  const regop[8] = {&B,&C,&D,&E,&HL.H,&HL.L,nullptr,&A};
 
             xstart()
             x("00000000    |   ", 1) {}
@@ -400,7 +401,7 @@ namespace Z80 {
             x("11111001    |   ", 1) { SP = HL; }
             x("11101011    |   ", 1) { swap(DE.W, Z80::HL.W); }
             x("00001000    |   ", 1) { swap(AF.W, AF1.W); }
-            x("11011001    |   ", 1) { swap(BC.W, BC1.W); swap(DE.W, DE1.W); swap(HL.W, HL1.W); }
+            x("11011001    |   ", 1) { swap(BC.W, BC1.W); swap(DE.W, DE1.W); swap(Z80::HL.W, HL1.W); }
             x("11100011    |   ", 5) { Mem16(true, SP, n); Mem16(false, SP, HL.W); HL=n; }
 
             x("11000011.n.N|   ", 3) { PC = n; }
