@@ -167,6 +167,8 @@ namespace Z80 {
         else if (xsf == 'h') AF.HF = 0; \
         else if (xsf == 'H') AF.HF = 1;
 
+    #define NextOp() (CLK+=1, Rd(PC.W++))
+
     struct XDecoder {
         u8 r_,s_,p_,q_,d,f,g,m,_; bool match; u16 n; const char *xsflag;
         bool cf, vf;
@@ -176,10 +178,10 @@ namespace Z80 {
             r_=s_=p_=q_=d=n=f=g=m=_=0; match=true;
             xxx(xs, 0) xxx(xs, 1) xxx(xs, 2) xxx(xs, 3)
             xxx(xs, 4) xxx(xs, 5) xxx(xs, 6) xxx(xs, 7)
-            if (xs[ 8] == '.')           { op=Rd(PC.W++); xa(xs[ 9]) }
-            if (xs[ 8] == ':' && prefix) { op=Rd(PC.W++); xa(xs[ 9]) }
-            if (xs[10] == '.')           { op=Rd(PC.W++); xa(xs[11]) }
-            if (xs[10] == ':' && prefix) { op=Rd(PC.W++); xa(xs[11]) }
+            if (xs[ 8] == '.')           { op=NextOp(); xa(xs[ 9]) }
+            if (xs[ 8] == ':' && prefix) { op=NextOp(); xa(xs[ 9]) }
+            if (xs[10] == '.')           { op=NextOp(); xa(xs[11]) }
+            if (xs[10] == ':' && prefix) { op=NextOp(); xa(xs[11]) }
             CLK+=cyc; cf=AF.CF; vf=AF.VF;
             xsflag = xs+13;
             match=true;
@@ -239,9 +241,9 @@ namespace Z80 {
         static void (* const table[256])() = {
             ft256(ftins)
         };
-        table[Rd(PC.W++)]();
+        table[NextOp()]();
     #else
-        switch (Rd(PC.W++)) {
+        switch (NextOp()) {
             #define ftins(n) case n: return INS<n>::exec();
             ft256(ftins)
         }
@@ -297,10 +299,10 @@ namespace Z80 {
         template <u8 prefix=0>
         static void exec() {
             xstart()
-            x("01000111    |   ", 2) { I=A; }
-            x("01001111    |   ", 2) { R=A; }
-            x("01010111    |hnk", 2) { A=I; F=ZSTable[A]; AF.PF=IFF2; }
-            x("0101A111    |hnk", 2) { A=R; F=ZSTable[A]; AF.PF=IFF2; }
+            x("01000111    |   ", 0) { I=A; }
+            x("01001111    |   ", 0) { R=A; }
+            x("01010111    |hnk", 0) { A=I; F=ZSTable[A]; AF.PF=IFF2; }
+            x("0101A111    |hnk", 0) { A=R; F=ZSTable[A]; AF.PF=IFF2; }
             fallback()           { Ins<op_>::template exec<0xDD>(); }
         }
     };
@@ -346,79 +348,79 @@ namespace Z80 {
             u8*  const regop[8] = {&B,&C,&D,&E,&HL.H,&HL.L,nullptr,&A};
 
             xstart()
-            x("00000000    |   ", 1) {}
-            x("01110110    |   ", 1) { PC.W -= 1; halted=true; }
-            x("11110011    |   ", 1) { IFF1=IFF2=0; }
-            x("11111011    |   ", 1) { IFF1=IFF2=1; ei_delay=true; }
+            x("00000000    |   ", 0) {}
+            x("01110110    |   ", 0) { PC.W -= 1; halted=true; }
+            x("11110011    |   ", 0) { IFF1=IFF2=0; }
+            x("11111011    |   ", 0) { IFF1=IFF2=1; ei_delay=true; }
 
-            x("0000m010    |   ", 2) { Mem8(m, BC, A); }
-            x("0001m010    |   ", 2) { Mem8(m, DE, A); }
-            x("0010m010.n.N|   ", 5) { Mem16(m, n, HL.W); }
-            x("00pp0001.n.N|   ", 2) { p=n; }
-            x("00001010    |   ", 2) { A=Rd(HL); }
-            x("0011m010.n.N|   ", 4) { Mem8(m, n, A); }
-            x("00110110:d.n|   ", 3) { Wr(HL+d, n); }
-            x("00rrr110.n  |   ", 1) { r=n; }
-            x("01rrr110:d  |   ", 2) { r=Rd(HL+d); }
-            x("01110rrr:d  |   ", 2) { Wr(HL+d, *Z80::regop[x.r_]); } // TEST!!!
-            x("01rrrsss    |   ", 1) { r=s; }
+            x("0000m010    |   ", 1) { Mem8(m, BC, A); }
+            x("0001m010    |   ", 1) { Mem8(m, DE, A); }
+            x("0010m010.n.N|   ", 2) { Mem16(m, n, HL.W); }
+            x("00pp0001.n.N|   ", 0) { p=n; }
+            x("00001010    |   ", 1) { A=Rd(HL); }
+            x("0011m010.n.N|   ", 1) { Mem8(m, n, A); }
+            x("00110110:d.n|   ", 1) { Wr(HL+d, n); }
+            x("00rrr110.n  |   ", 0) { r=n; }
+            x("01rrr110:d  |   ", 1) { r=Rd(HL+d); }
+            x("01110rrr:d  |   ", 1) { Wr(HL+d, *Z80::regop[x.r_]); } // TEST!!!
+            x("01rrrsss    |   ", 0) { r=s; }
 
-            x("1101m011.n  |   ", 3) { Io8(m, ((A<<8)|n), A); }
+            x("1101m011.n  |   ", 1) { Io8(m, ((A<<8)|n), A); }
 
-            x("00101111    |*HN", 1) { A=~A; }
-            x("00110111    |*hn", 1) { AF.CF=1; }
-            x("00111111    |*n ", 1) { AF.HF=AF.CF; AF.CF=~AF.CF; }
+            x("00101111    |*HN", 0) { A=~A; }
+            x("00110111    |*hn", 0) { AF.CF=1; }
+            x("00111111    |*n ", 0) { AF.HF=AF.CF; AF.CF=~AF.CF; }
 
-            x("00110100:d  |!k ", 1) { AF.CF=0; Wr(HL, ADC(Rd(HL+d),1)); }
-            x("00rrr10g    |!k ", 1) { AF.CF=0; r=(g?SBC:ADC)(r,1); }
-            x("00pp1001    |!w ", 3) { AF.CF=0; HL.L=ADC(HL.L, p.L); HL.H=ADC(HL.H, p.H); AF.ZF=!HL.W; }
-            x("00ppf011    |   ", 1) { p.W -= f*2-1; }
+            x("00110100:d  |!k ", 0) { AF.CF=0; Wr(HL, ADC(Rd(HL+d),1)); }
+            x("00rrr10g    |!k ", 0) { AF.CF=0; r=(g?SBC:ADC)(r,1); }
+            x("00pp1001    |!w ", 2) { AF.CF=0; HL.L=ADC(HL.L, p.L); HL.H=ADC(HL.H, p.H); AF.ZF=!HL.W; }
+            x("00ppf011    |   ", 0) { p.W -= f*2-1; }
 
-            x("100gf110:d  |!  ", 2) { AF.CF&=f; A=(g?SBC:ADC)(A,Rd(HL+d)); }
-            x("100gfrrr    |!  ", 1) { AF.CF&=f; A=(g?SBC:ADC)(A,r); }
-            x("110gf110.n  |!  ", 2) { AF.CF&=f; A=(g?SBC:ADC)(A,n); }
-            x("10111110:d  |!  ", 2) { AF.CF=0; (void)SBC(A,Rd(HL+d)); }
-            x("10111rrr    |!  ", 1) { AF.CF=0; (void)SBC(A,r); }
-            x("11111110.n  |!  ", 2) { AF.CF=0; (void)SBC(A,n); }
+            x("100gf110:d  |!  ", 1) { AF.CF&=f; A=(g?SBC:ADC)(A,Rd(HL+d)); }
+            x("100gfrrr    |!  ", 0) { AF.CF&=f; A=(g?SBC:ADC)(A,r); }
+            x("110gf110.n  |!  ", 0) { AF.CF&=f; A=(g?SBC:ADC)(A,n); }
+            x("10111110:d  |!  ", 1) { AF.CF=0; (void)SBC(A,Rd(HL+d)); }
+            x("10111rrr    |!  ", 0) { AF.CF=0; (void)SBC(A,r); }
+            x("11111110.n  |!  ", 0) { AF.CF=0; (void)SBC(A,n); }
 
-            x("10100110:d  |@H ", 2) { A&=Rd(HL+d); }
-            x("10100rrr    |@H ", 1) { A&=r; }
-            x("11100110.n  |@H ", 2) { A&=n; }
-            x("10110110:d  |@  ", 2) { A|=Rd(HL+d); }
-            x("10110rrr    |@  ", 1) { A|=r; }
-            x("11110110.n  |@  ", 2) { A|=n; }
-            x("10101110:d  |@  ", 2) { A^=Rd(HL+d); }
-            x("10101rrr    |@  ", 1) { A^=r; }
-            x("11101110.n  |@  ", 2) { A^=n; }
+            x("10100110:d  |@H ", 1) { A&=Rd(HL+d); }
+            x("10100rrr    |@H ", 0) { A&=r; }
+            x("11100110.n  |@H ", 0) { A&=n; }
+            x("10110110:d  |@  ", 1) { A|=Rd(HL+d); }
+            x("10110rrr    |@  ", 0) { A|=r; }
+            x("11110110.n  |@  ", 0) { A|=n; }
+            x("10101110:d  |@  ", 1) { A^=Rd(HL+d); }
+            x("10101rrr    |@  ", 0) { A^=r; } /* XOR reg */
+            x("11101110.n  |@  ", 0) { A^=n; }
 
-            x("00000111    |hn ", 2) { A=(A>>7)|(A<<1);     AF.CF=A&1;      }
-            x("00001111    |hn ", 2) { A=(A<<7)|(A>>1);     AF.CF=A&1;      }
-            x("00010111    |hn ", 2) { _=(A<<1)|AF.CF;      AF.CF=A&1; A=_; }
-            x("00011111    |hn ", 2) { _=(A>>1)|(AF.CF<<7); AF.CF=A&1; A=_; }
+            x("00000111    |hn ", 1) { A=(A>>7)|(A<<1);     AF.CF=A&1;      }
+            x("00001111    |hn ", 1) { A=(A<<7)|(A>>1);     AF.CF=A&1;      }
+            x("00010111    |hn ", 1) { _=(A<<1)|AF.CF;      AF.CF=A&1; A=_; }
+            x("00011111    |hn ", 1) { _=(A>>1)|(AF.CF<<7); AF.CF=A&1; A=_; }
 
-            x("11qq0101    |   ", 3) { Wr(--SP, q.H); Wr(--SP, q.L); }
-            x("11qq0001    |   ", 3) { q.L = Rd(SP++); q.H = Rd(SP++); }
-            x("11111001    |   ", 1) { SP = HL; }
-            x("11101011    |   ", 1) { swap(DE.W, Z80::HL.W); }
-            x("00001000    |   ", 1) { swap(AF.W, AF1.W); }
-            x("11011001    |   ", 1) { swap(BC.W, BC1.W); swap(DE.W, DE1.W); swap(Z80::HL.W, HL1.W); }
-            x("11100011    |   ", 5) { Mem16(true, SP, n); Mem16(false, SP, HL.W); HL=n; }
+            x("11qq0101    |   ", 2) { Wr(--SP, q.H); Wr(--SP, q.L); }
+            x("11qq0001    |   ", 2) { q.L = Rd(SP++); q.H = Rd(SP++); }
+            x("11111001    |   ", 0) { SP = HL; }
+            x("11101011    |   ", 0) { swap(DE.W, Z80::HL.W); }
+            x("00001000    |   ", 0) { swap(AF.W, AF1.W); }
+            x("11011001    |   ", 0) { swap(BC.W, BC1.W); swap(DE.W, DE1.W); swap(Z80::HL.W, HL1.W); }
+            x("11100011    |   ", 4) { Mem16(true, SP, n); Mem16(false, SP, HL.W); HL=n; }
 
-            x("11000011.n.N|   ", 3) { PC = n; }
-            x("11ffg010    |   ", 3) { if ((g?F:~F)&flagmask[f]) CLK+=2,Mem16(true, PC, PC.W); else PC.W+=2; }
-            x("00011000.n  |   ", 3) { PC.W += (s8)n; }
-            x("00111000    |   ", 2) { if (AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
-            x("00110000    |   ", 2) { if (!AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
-            x("00101000    |   ", 2) { if (AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
-            x("00100000    |   ", 2) { if (!AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
-            x("11101001    |   ", 2) { PC = HL; }
-            x("00010000    |   ", 2) { if (--B) { PC.W +=(s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("11000011.n.N|   ", 0) { PC = n; }
+            x("11ffg010    |   ", 2) { if ((g?F:~F)&flagmask[f]) CLK+=2,Mem16(true, PC, PC.W); else PC.W+=2; }
+            x("00011000.n  |   ", 1) { PC.W += (s8)n; }
+            x("00111000    |   ", 1) { if (AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("00110000    |   ", 1) { if (!AF.CF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("00101000    |   ", 1) { if (AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("00100000    |   ", 1) { if (!AF.ZF) { PC.W += (s8)Rd(PC); CLK+=1; } PC.W+=1; }
+            x("11101001    |   ", 1) { PC = HL; }
+            x("00010000    |   ", 1) { if (--B) { PC.W +=(s8)Rd(PC); CLK+=1; } PC.W+=1; }
 
-            x("11ffg100    |   ", 3) { PC.W+=2; if ((g?F:~F)&flagmask[f]) { Mem16(true, PC.W-2, n); Wr(--SP, PC.H); Wr(--SP, PC.L); CLK+=2; PC.W=n; } }
-            x("11001101.n.N|   ", 5) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=n; }
-            x("11ffg000    |   ", 1) { if ((g?F:~F)&flagmask[f]) { PC.L=Rd(SP++); PC.H=Rd(SP++); CLK+=2; } }
-            x("11001001    |   ", 3) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
-            x("11fff111    |   ", 3) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=f*8; }
+            x("11ffg100    |   ", 2) { PC.W+=2; if ((g?F:~F)&flagmask[f]) { Mem16(true, PC.W-2, n); Wr(--SP, PC.H); Wr(--SP, PC.L); CLK+=2; PC.W=n; } }
+            x("11001101.n.N|   ", 2) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=n; }
+            x("11ffg000    |   ", 0) { if ((g?F:~F)&flagmask[f]) { PC.L=Rd(SP++); PC.H=Rd(SP++); CLK+=2; } }
+            x("11001001    |   ", 2) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
+            x("11fff111    |   ", 2) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=f*8; }
 
             x("11001011    |   ", 0) { OpCall<InsCB,prefix>(); }
             x("11011101    |   ", 0) { OpCall<InsDD>(); }
