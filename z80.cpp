@@ -360,7 +360,7 @@ namespace Z80 {
             x("00110110:d.n|   ", 3) { Wr(HL+d, n); }
             x("00rrr110.n  |   ", 1) { r=n; }
             x("01rrr110:d  |   ", 2) { r=Rd(HL+d); }
-            x("01110rrr:d  |   ", 2) { Wr(HL+d, r); }
+            x("01110rrr:d  |   ", 2) { Wr(HL+d, *Z80::regop[x.r_]); } // TEST!!!
             x("01rrrsss    |   ", 1) { r=s; }
 
             x("1101m011.n  |   ", 3) { Io8(m, ((A<<8)|n), A); }
