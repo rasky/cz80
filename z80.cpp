@@ -414,9 +414,9 @@ namespace Z80 {
             x("11101001    |   ", 2) { PC = HL; }
             x("00010000    |   ", 2) { if (--B) { PC.W +=(s8)Rd(PC); CLK+=1; } PC.W+=1; }
 
-            x("11ffg100    |   ", 3) { if ((g?F:~F)&flagmask[f]) { Wr(--SP, PC.H); Wr(--SP, PC.L); CLK+=2; Mem16(true, PC, PC.W); } else PC.W+=2; }
+            x("11ffg100    |   ", 3) { PC.W+=2; if ((g?F:~F)&flagmask[f]) { Mem16(true, PC.W-2, n); Wr(--SP, PC.H); Wr(--SP, PC.L); CLK+=2; PC.W=n; } }
             x("11001101.n.N|   ", 5) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=n; }
-            x("11ffg000    |   ", 1) { if ((g?F:~F)&flagmask[f]) { PC.L=Rd(SP--); PC.H=Rd(SP--); CLK+=2; } }
+            x("11ffg000    |   ", 1) { if ((g?F:~F)&flagmask[f]) { PC.L=Rd(SP++); PC.H=Rd(SP++); CLK+=2; } }
             x("11001001    |   ", 3) { PC.L=Rd(SP++); PC.H=Rd(SP++); }
             x("11fff111    |   ", 3) { Wr(--SP, PC.H); Wr(--SP, PC.L); PC.W=f*8; }
 
