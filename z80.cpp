@@ -373,7 +373,7 @@ namespace Z80 {
 
             x("00101111    |*HN", 0) { A=~A; }
             x("00110111    |*hn", 0) { AF.CF=1; }
-            x("00111111    |*n ", 0) { AF.HF=AF.CF; AF.CF=~AF.CF; }
+            x("00111111    |*n ", 0) { AF.HF=AF.CF; AF.CF=!AF.CF; } // CCF
 
             x("0011010g:d  |!k ", 0) { AF.CF=0; Wr(HL+d, (g?SBC:ADC)(Rd(HL+d),1)); }
             x("00rrr10g    |!k ", 0) { AF.CF=0; r=(g?SBC:ADC)(r,1); }
