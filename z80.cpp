@@ -283,7 +283,14 @@ namespace Z80 {
             if (prefix || (op_ & 7) == 6) { *regop[op_&7] = Rd(HL+doff); CLK++; }
 
             xstart()
-            x("00000rrr    |@hn", 0) { r=(r>>7)|(r<<1); AF.CF=r&1; }
+            x("00000rrr    |hn ", 0) { f=r>>7; r=(r<<1)|(r>>7);     F = PZSTable[r]; AF.CF=f; } // RLC
+            x("00001rrr    |hn ", 0) { f=r&1;  r=(r>>1)|(r<<7);     F = PZSTable[r]; AF.CF=f; } // RRC
+            x("00010rrr    |hn ", 0) { f=r>>7; r=(r<<1)|AF.CF;      F = PZSTable[r]; AF.CF=f; } // RL
+            x("00011rrr    |hn ", 0) { f=r&1;  r=(r>>1)|(AF.CF<<7); F = PZSTable[r]; AF.CF=f; } // RR
+            x("00100rrr    |hn ", 0) { f=r>>7; r=(r<<1)|(r&1);      F = PZSTable[r]; AF.CF=f; } // SLA
+            x("00101rrr    |hn ", 0) { f=r&1;  r=(r>>1)|(r&0x80);   F = PZSTable[r]; AF.CF=f; } // SRA
+            x("00110rrr    |hn ", 0) { f=r>>7; r=(r<<1);            F = PZSTable[r]; AF.CF=f; } // SLL
+            x("00111rrr    |hn ", 0) { f=r&1;  r=(r>>1);            F = PZSTable[r]; AF.CF=f; } // SRL
             x("01fffrrr    |Hnk", 0) { g = r & (1<<f); F = PZSTable[g]; wb=false; }
             x("10fffrrr    |   ", 0) { r &= ~(1<<f); }
             x("11fffrrr    |   ", 0) { r |=  (1<<f); }
