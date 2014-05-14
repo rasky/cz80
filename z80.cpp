@@ -375,7 +375,7 @@ namespace Z80 {
             x("00110111    |*hn", 0) { AF.CF=1; }
             x("00111111    |*n ", 0) { AF.HF=AF.CF; AF.CF=~AF.CF; }
 
-            x("00110100:d  |!k ", 0) { AF.CF=0; Wr(HL, ADC(Rd(HL+d),1)); }
+            x("0011010g:d  |!k ", 0) { AF.CF=0; Wr(HL+d, (g?SBC:ADC)(Rd(HL+d),1)); }
             x("00rrr10g    |!k ", 0) { AF.CF=0; r=(g?SBC:ADC)(r,1); }
             x("00pp1001    |!w ", 2) { AF.CF=0; HL.L=ADC(HL.L, p.L); HL.H=ADC(HL.H, p.H); AF.ZF=!HL.W; }
             x("00ppf011    |   ", 0) { p.W -= f*2-1; }
