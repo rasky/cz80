@@ -317,7 +317,7 @@ namespace Z80 {
         static void exec() {
             xstart()
             x("01000100    |   ", 2) { AF.CF=0; A=SBC(0,A); }
-            x("01ppm011    |   ", 6) { Mem16(m, n, p.W); }
+            x("01ppm011.n.N|   ", 6) { Mem16(m, n, p.W); }
             x("11rrr00m    |   ", 3) { Io8(!m, BC, r); /* FLAG */ }
             x("101gf010    |   ", 4) { Wr(HL, In(BC));  HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
             x("101gf011    |   ", 4) { Out(BC, Rd(HL)); HL.W-=f*2-1; if (--B && g) { PC.W-=2; CLK++; } /* FLAG */ }
